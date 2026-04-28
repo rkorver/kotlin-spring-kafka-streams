@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: parcel-tracking
+  datasource:
+    url: jdbc:postgresql://localhost:5432/parcel_tracking
+    username: parcel
+    password: parcel
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    properties:
+      schema.registry.url: http://localhost:8081
+    listener:
+      missing-topics-fatal: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    org.apache.kafka: WARN
+    nl.postparcel: INFO

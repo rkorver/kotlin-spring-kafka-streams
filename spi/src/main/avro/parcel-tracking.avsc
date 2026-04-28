@@ -1,0 +1,109 @@
+[
+  {
+    "namespace": "nl.postparcel.tracking.events.v1",
+    "type": "record",
+    "name": "Address",
+    "doc": "Postal address used for sender, recipient and delivery locations.",
+    "fields": [
+      {"name": "name", "type": "string", "doc": "Full name of the person or company."},
+      {"name": "street", "type": "string"},
+      {"name": "houseNumber", "type": "string", "doc": "Includes any suffixes, e.g. '42B'."},
+      {"name": "postalCode", "type": "string", "doc": "Dutch postal code format: 1234AB."},
+      {"name": "city", "type": "string"},
+      {"name": "country", "type": "string", "default": "NL", "doc": "ISO 3166-1 alpha-2 country code."}
+    ]
+  },
+  {
+    "namespace": "nl.postparcel.tracking.events.v1",
+    "type": "enum",
+    "name": "SortingCenterEventType",
+    "doc": "Lifecycle events observed at a sorting center. Only READY_FOR_DELIVERY is relevant for journey completion.",
+    "symbols": ["ARRIVED", "SORTED", "READY_FOR_DELIVERY", "EXCEPTION", "RETURNED_TO_SENDER"]
+  },
+  {
+    "namespace": "nl.postparcel.tracking.events.v1",
+    "type": "enum",
+    "name": "ReceiverType",
+    "doc": "Who actually received the parcel at the final stop.",
+    "symbols": ["CUSTOMER", "NEIGHBOUR", "MAILBOX", "PICKUP_POINT"]
+  },
+  {
+    "namespace": "nl.postparcel.tracking.events.v1",
+    "type": "record",
+    "name": "ParcelReceivedAtPostalOffice",
+    "doc": "Emitted the first time a parcel is scanned at a postal office after drop-off by the sender.",
+    "fields": [
+      {"name": "parcelId", "type": "string", "doc": "Stable internal identifier, typically a UUID."},
+      {"name": "trackingCode", "type": "string", "doc": "Customer-visible tracking code, e.g. 3SKABA000000001."},
+      {"name": "postalOfficeId", "type": "string", "doc": "Internal identifier of the postal office branch."},
+      {"name": "postalOfficeCity", "type": "string"},
+      {"name": "sender", "type": "nl.postparcel.tracking.events.v1.Address"},
+      {"name": "recipient", "type": "nl.postparcel.tracking.events.v1.Address"},
+      {"name": "weightGrams", "type": "int", "doc": "Weight of the parcel in grams as measured at drop-off."},
+      {"name": "scannedAt", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Moment the barcode was scanned."},
+      {"name": "employeeId", "type": ["null", "string"], "default": null, "doc": "Optional id of the counter employee."}
+    ]
+  },
+  {
+    "namespace": "nl.postparcel.tracking.events.v1",
+    "type": "record",
+    "name": "SortingCenterEvent",
+    "doc": "Single topic that carries every scan inside a sorting center. Consumers must filter on eventType. Journey-completion logic only cares about READY_FOR_DELIVERY.",
+    "fields": [
+      {"name": "parcelId", "type": "string"},
+      {"name": "trackingCode", "type": "string"},
+      {"name": "sortingCenterId", "type": "string", "doc": "Internal identifier of the sorting center, e.g. 'SC-AMS-01'."},
+      {"name": "sortingCenterCity", "type": "string"},
+      {"name": "eventType", "type": "nl.postparcel.tracking.events.v1.SortingCenterEventType"},
+      {"name": "destinationHub", "type": ["null", "string"], "default": null, "doc": "Outbound delivery hub when eventType = READY_FOR_DELIVERY."},
+      {"name": "belt", "type": ["null", "string"], "default": null, "doc": "Conveyor belt or lane identifier."},
+      {"name": "scannedAt", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+      {"name": "remarks", "type": ["null", "string"], "default": null, "doc": "Free-text remark, typically populated for EXCEPTION events."}
+    ]
+  },
+  {
+    "namespace": "nl.postparcel.tracking.events.v1",
+    "type": "record",
+    "name": "ParcelDeliveredToCustomer",
+    "doc": "Emitted when a courier hands over the parcel at the final delivery address.",
+    "fields": [
+      {"name": "parcelId", "type": "string"},
+      {"name": "trackingCode", "type": "string"},
+      {"name": "deliveredAt", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+      {"name": "deliveryAddress", "type": "nl.postparcel.tracking.events.v1.Address"},
+      {"name": "receivedBy", "type": "nl.postparcel.tracking.events.v1.ReceiverType"},
+      {"name": "signatureBase64", "type": ["null", "string"], "default": null, "doc": "Captured signature if receivedBy = CUSTOMER or NEIGHBOUR."},
+      {"name": "courierId", "type": "string"},
+      {"name": "photoEvidenceUrl", "type": ["null", "string"], "default": null, "doc": "Optional URL of the mailbox photo."}
+    ]
+  },
+  {
+    "namespace": "nl.postparcel.tracking.events.v1",
+    "type": "record",
+    "name": "ParcelJourneyState",
+    "doc": "Internal aggregation state held in the Kafka Streams state store. Not published to any external topic.",
+    "fields": [
+      {"name": "parcelId", "type": "string"},
+      {"name": "trackingCode", "type": ["null", "string"], "default": null},
+      {"name": "postalOffice", "type": ["null", "nl.postparcel.tracking.events.v1.ParcelReceivedAtPostalOffice"], "default": null},
+      {"name": "readyForDelivery", "type": ["null", "nl.postparcel.tracking.events.v1.SortingCenterEvent"], "default": null},
+      {"name": "delivered", "type": ["null", "nl.postparcel.tracking.events.v1.ParcelDeliveredToCustomer"], "default": null},
+      {"name": "complete", "type": "boolean", "default": false, "doc": "True once all three required checkpoints are present."},
+      {"name": "alreadyEmitted", "type": "boolean", "default": false, "doc": "Guards against duplicate completion events when new scans arrive after completion."}
+    ]
+  },
+  {
+    "namespace": "nl.postparcel.tracking.events.v1",
+    "type": "record",
+    "name": "ParcelJourneyCompleted",
+    "doc": "Published exactly once per parcel once all three required scans have been received. Carries the full checkpoint detail so downstream consumers do not need access to the state store.",
+    "fields": [
+      {"name": "parcelId", "type": "string"},
+      {"name": "trackingCode", "type": "string"},
+      {"name": "postalOffice", "type": "nl.postparcel.tracking.events.v1.ParcelReceivedAtPostalOffice"},
+      {"name": "readyForDelivery", "type": "nl.postparcel.tracking.events.v1.SortingCenterEvent"},
+      {"name": "delivered", "type": "nl.postparcel.tracking.events.v1.ParcelDeliveredToCustomer"},
+      {"name": "totalDurationMillis", "type": "long", "doc": "delivered.deliveredAt minus postalOffice.scannedAt."}
+    ]
+  }
+]
