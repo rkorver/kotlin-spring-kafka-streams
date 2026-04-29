@@ -207,7 +207,7 @@
                             <ignoredUnusedDeclaredDependency>org.postgresql:postgresql</ignoredUnusedDeclaredDependency>
                             <ignoredUnusedDeclaredDependency>org.springframework.boot:spring-boot-actuator-autoconfigure</ignoredUnusedDeclaredDependency>
                             <ignoredUnusedDeclaredDependency>org.springframework.boot:spring-boot-starter-actuator</ignoredUnusedDeclaredDependency>
-                            <ignoredUnusedDeclaredDependency>org.springframework.boot:spring-boot-starter-data-jpa</ignoredUnusedDeclaredDependency>
+                            <ignoredUnusedDeclaredDependency>org.springframework.boot:spring-boot-starter-jooq</ignoredUnusedDeclaredDependency>
                             <ignoredUnusedDeclaredDependency>org.springframework.boot:spring-boot-starter-test</ignoredUnusedDeclaredDependency>
                             <ignoredUnusedDeclaredDependency>org.springframework.boot:spring-boot-starter-web</ignoredUnusedDeclaredDependency>
                             <ignoredUnusedDeclaredDependency>org.springframework.boot:spring-boot-starter-webflux</ignoredUnusedDeclaredDependency>
