@@ -1,7 +1,6 @@
 package nl.postparcel.tracking.adapters.kafka.consumer
 
 import nl.postparcel.tracking.adapters.kafka.mapper.CompletedJourneyMapper.toDomain
-import nl.postparcel.tracking.consumer.JourneyCompletedHandler
 import nl.postparcel.tracking.domain.service.ParcelJourneyService
 import nl.postparcel.tracking.events.v1.ParcelJourneyCompleted
 import nl.postparcel.tracking.logger
@@ -12,13 +11,13 @@ import org.springframework.stereotype.Component
 @Component
 class JourneyCompletedConsumer(
     private val persistenceService: ParcelJourneyService,
-) : JourneyCompletedHandler {
+) {
     @KafkaListener(
         topics = [JOURNEY_COMPLETED],
         groupId = "\${spring.application.name:parcel-tracking}-persistence",
         containerFactory = "avroKafkaListenerContainerFactory",
     )
-    override fun onJourneyCompleted(event: ParcelJourneyCompleted) {
+    fun onJourneyCompleted(event: ParcelJourneyCompleted) {
         logger.info("Received ParcelJourneyCompleted parcelId={} trackingCode={}", event.parcelId, event.trackingCode)
 
         event
