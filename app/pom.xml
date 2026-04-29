@@ -27,11 +27,11 @@
 
         <dependency>
             <groupId>nl.postparcel</groupId>
-            <artifactId>parcel-tracking-api</artifactId>
+            <artifactId>parcel-tracking-domain</artifactId>
         </dependency>
         <dependency>
             <groupId>nl.postparcel</groupId>
-            <artifactId>parcel-tracking-spi</artifactId>
+            <artifactId>parcel-tracking-events</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.avro</groupId>
@@ -113,12 +113,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <dependency>
-            <groupId>com.tngtech.archunit</groupId>
-            <artifactId>archunit-junit5</artifactId>
-            <version>1.4.1</version>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>

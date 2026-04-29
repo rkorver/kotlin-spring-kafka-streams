@@ -1,0 +1,64 @@
+openapi: 3.1.0
+info:
+  title: Parcel Tracking API
+  description: Query completed parcel journeys.
+  version: 0.1.0
+
+paths:
+  /parcels/{parcelId}:
+    get:
+      operationId: getJourney
+      summary: Retrieve a completed parcel journey by parcel ID
+      parameters:
+        - name: parcelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Journey found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelJourneyResponse'
+        '404':
+          description: Journey not found
+
+components:
+  schemas:
+    ParcelJourneyResponse:
+      type: object
+      required:
+        - parcelId
+        - trackingCode
+        - postalOfficeCity
+        - receivedAt
+        - sortingCenterCity
+        - readyForDeliveryAt
+        - deliveryCity
+        - deliveredAt
+        - receivedBy
+        - totalDurationMillis
+      properties:
+        parcelId:
+          type: string
+        trackingCode:
+          type: string
+        postalOfficeCity:
+          type: string
+        receivedAt:
+          type: string
+        sortingCenterCity:
+          type: string
+        readyForDeliveryAt:
+          type: string
+        deliveryCity:
+          type: string
+        deliveredAt:
+          type: string
+        receivedBy:
+          type: string
+        totalDurationMillis:
+          type: integer
+          format: int64

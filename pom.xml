@@ -18,9 +18,9 @@
     <description>Kafka Streams demo for aggregating parcel journey events.</description>
 
     <modules>
-        <module>api</module>
+        <module>domain</module>
+        <module>events</module>
         <module>app</module>
-        <module>spi</module>
     </modules>
 
     <properties>
@@ -61,12 +61,12 @@
             </dependency>
             <dependency>
                 <groupId>nl.postparcel</groupId>
-                <artifactId>parcel-tracking-api</artifactId>
+                <artifactId>parcel-tracking-domain</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>nl.postparcel</groupId>
-                <artifactId>parcel-tracking-spi</artifactId>
+                <artifactId>parcel-tracking-events</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

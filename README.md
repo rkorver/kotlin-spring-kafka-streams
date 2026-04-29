@@ -4,11 +4,11 @@ A parcel journey tracking service built with **Kotlin**, **Spring Boot**, and **
 
 ## Architecture
 
-The project follows a **Ports & Adapters** (hexagonal) architecture:
+The project follows a **Ports & Adapters** (hexagonal) architecture with compile-time enforcement via Maven modules:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                          Adapters                               │
+│                          Adapters (app)                         │
 │                                                                 │
 │  ┌──────────────┐   ┌──────────────────┐   ┌────────────────┐  │
 │  │  REST API    │   │  Kafka Streams   │   │  Kafka         │  │
@@ -17,14 +17,14 @@ The project follows a **Ports & Adapters** (hexagonal) architecture:
 │  └──────┬───────┘   └──────────────────┘   └───────┬────────┘  │
 │         │                                          │            │
 │         │           ┌──────────────────┐           │            │
-│         │           │  JPA Repository  │           │            │
+│         │           │  jOOQ Repository │           │            │
 │         │           │  (outbound)      │           │            │
 │         │           └──────┬───────────┘           │            │
 │         │                  │                       │            │
 ├─────────┼──────────────────┼───────────────────────┼────────────┤
 │         ▼                  ▼                       ▼            │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │                     Domain Core                         │    │
+│  │                   Domain (domain)                       │    │
 │  │                                                         │    │
 │  │  ParcelJourney  ·  ParcelJourneyService  ·  Ports       │    │
 │  │  (models)         (business logic)         (interfaces)  │    │
@@ -32,19 +32,18 @@ The project follows a **Ports & Adapters** (hexagonal) architecture:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-The **domain** has no dependencies on frameworks or infrastructure. Adapters implement the ports:
+The **domain** module has no dependencies on frameworks or infrastructure (only `kotlin-stdlib` and `slf4j-api`). The compiler enforces this — adapters cannot leak into domain.
 
-| Layer | Package | Responsibility |
-|-------|---------|----------------|
-| Domain | `domain.model` | Value objects: `ParcelJourney`, `ParcelId`, `TrackingCode`, checkpoints |
-| Domain | `domain.port` | `ParcelJourneyRepository` interface |
-| Domain | `domain.service` | `ParcelJourneyService` — orchestrates persistence |
-| Adapter | `adapters.kafka.topology` | Kafka Streams topology (event aggregation) |
-| Adapter | `adapters.kafka.consumer` | `@KafkaListener` for completed journeys |
-| Adapter | `adapters.persistence` | jOOQ implementation of `ParcelJourneyRepository` |
-| Adapter | `adapters.web` | REST controller (`GET /parcels/{id}`) |
-| SPI | `spi` | Avro schemas, shared topic names, handler contracts |
-| API | `api` | REST API interface and response DTOs |
+| Layer | Module / Package | Responsibility |
+|-------|-----------------|----------------|
+| Domain | `domain` / `domain.model` | Value objects: `ParcelJourney`, `ParcelId`, `TrackingCode`, checkpoints |
+| Domain | `domain` / `domain.port` | `ParcelJourneyRepository` interface |
+| Domain | `domain` / `domain.service` | `ParcelJourneyService` — orchestrates persistence |
+| Adapter | `app` / `adapters.kafka.topology` | Kafka Streams topology (event aggregation) |
+| Adapter | `app` / `adapters.kafka.consumer` | `@KafkaListener` for completed journeys |
+| Adapter | `app` / `adapters.persistence` | jOOQ implementation of `ParcelJourneyRepository` |
+| Adapter | `app` / `adapters.web` | REST controller (`GET /parcels/{id}`) |
+| Events | `events` | Avro schemas and shared Kafka topic constants |
 
 ## Event Flow
 
@@ -54,7 +53,7 @@ Three Kafka topics carry parcel lifecycle events, each produced by an independen
  parcel.received-at-postal-office.v1 ──┐
                                        │
  parcel.sorting-center-events.v1 ──────┤──▶  Kafka Streams   ──▶  parcel.journey-completed.v1
-   (filtered: READY_FOR_DELIVERY)      │     Transformer           │
+   (filtered: READY_FOR_DELIVERY)      │     Processor             │
                                        │     (keyed by parcelId)   │
  parcel.delivered-to-customer.v1 ──────┘                           ▼
                                                               @KafkaListener
@@ -68,7 +67,7 @@ Three Kafka topics carry parcel lifecycle events, each produced by an independen
 
 1. Events arrive in any order on three topics
 2. The Kafka Streams topology merges all three streams, re-keys by `parcelId`
-3. A `Transformer` with a local RocksDB state store accumulates partial state
+3. A stateful `Processor` with a local RocksDB state store accumulates partial state
 4. Once all three checkpoints are present, a `ParcelJourneyCompleted` event is emitted
 5. The state store entry is **deleted** immediately — keeping the store bounded to in-flight parcels only
 6. A plain `@KafkaListener` consumes completed events and persists them via jOOQ
@@ -76,10 +75,12 @@ Three Kafka topics carry parcel lifecycle events, each produced by an independen
 ## Multi-Module Structure
 
 ```
-├── api/       REST API interface + response DTOs
-├── app/       Spring Boot application, all adapters, domain, config
-└── spi/       Avro schemas, Kafka topic constants, handler contracts
+├── domain/    Pure domain: models, ports, services (zero framework deps)
+├── events/    Avro schemas + Kafka topic constants
+└── app/       Spring Boot application, adapters, config, OpenAPI spec
 ```
+
+The REST API contract is defined as an OpenAPI spec at `app/src/main/resources/openapi/parcel-tracking-api.yaml`.
 
 ## Tech Stack
 
