@@ -12,17 +12,14 @@ import nl.postparcel.tracking.topics.KafkaTopics.PARCEL_DELIVERED
 import nl.postparcel.tracking.topics.KafkaTopics.PARCEL_RECEIVED
 import nl.postparcel.tracking.topics.KafkaTopics.SORTING_CENTER_EVENTS
 import org.apache.kafka.common.serialization.Serde
+import org.apache.kafka.common.utils.Bytes
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.kstream.Consumed
+import org.apache.kafka.streams.kstream.Grouped
 import org.apache.kafka.streams.kstream.KStream
-import org.apache.kafka.streams.kstream.Named
+import org.apache.kafka.streams.kstream.Materialized
 import org.apache.kafka.streams.kstream.Produced
-import org.apache.kafka.streams.processor.api.Processor
-import org.apache.kafka.streams.processor.api.ProcessorContext
-import org.apache.kafka.streams.processor.api.ProcessorSupplier
-import org.apache.kafka.streams.processor.api.Record
 import org.apache.kafka.streams.state.KeyValueStore
-import org.apache.kafka.streams.state.Stores
 import org.springframework.stereotype.Component
 import java.time.Duration
 
@@ -42,12 +39,12 @@ class ParcelTrackingTopology(
                 .selectKey { _, value -> value.parcelId }
                 .mapValues(::partialFromServicePoint)
 
-        val readyForDeliveryStream =
+        val sortingCenterStream =
             builder
                 .stream(SORTING_CENTER_EVENTS, Consumed.with(stringSerde, sortingCenterScanSerde))
                 .filter { _, value -> value.scanType == READY_FOR_DELIVERY }
                 .selectKey { _, value -> value.parcelId }
-                .mapValues(::partialFromReadyForDelivery)
+                .mapValues(::partialFromSortingCenter)
 
         val deliveredStream =
             builder
@@ -56,9 +53,8 @@ class ParcelTrackingTopology(
                 .mapValues(::partialFromDelivered)
 
         mergeAndAggregateToTopic(
-            builder,
             servicePointStream,
-            readyForDeliveryStream,
+            sortingCenterStream,
             deliveredStream,
             JOURNEY_COMPLETED,
         )
@@ -67,99 +63,53 @@ class ParcelTrackingTopology(
     }
 
     private fun mergeAndAggregateToTopic(
-        builder: StreamsBuilder,
         servicePointStream: KStream<String, ParcelJourneyState>,
         sortingCenterStream: KStream<String, ParcelJourneyState>,
         deliveredStream: KStream<String, ParcelJourneyState>,
         topic: String,
     ) {
-        builder.addStateStore(
-            Stores.keyValueStoreBuilder(
-                Stores.persistentKeyValueStore(STATE_STORE_NAME),
-                stringSerde,
-                parcelJourneyStateSerde,
-            ),
-        )
-
-        val processorSupplier =
-            ProcessorSupplier<String, ParcelJourneyState, String, ParcelJourneyCompleted> {
-                object : Processor<String, ParcelJourneyState, String, ParcelJourneyCompleted> {
-                    private lateinit var context: ProcessorContext<String, ParcelJourneyCompleted>
-                    private lateinit var store: KeyValueStore<String, ParcelJourneyState>
-
-                    override fun init(context: ProcessorContext<String, ParcelJourneyCompleted>) {
-                        this.context = context
-                        @Suppress("UNCHECKED_CAST")
-                        store = context.getStateStore(STATE_STORE_NAME) as KeyValueStore<String, ParcelJourneyState>
-                    }
-
-                    override fun process(record: Record<String, ParcelJourneyState>) {
-                        val key = record.key()
-                        val incoming = record.value()
-                        val current = store.get(key) ?: emptyState()
-                        val merged = mergeState(current, incoming)
-
-                        if (merged.complete) {
-                            store.delete(key)
-                            context.forward(Record(key, toCompletedEvent(merged), record.timestamp()))
-                        } else {
-                            store.put(key, merged)
-                        }
-                    }
-                }
-            }
-
         servicePointStream
             .merge(sortingCenterStream)
             .merge(deliveredStream)
-            .process(processorSupplier, Named.`as`("journey-aggregator"), STATE_STORE_NAME)
+            .groupByKey(Grouped.with(stringSerde, parcelJourneyStateSerde))
+            .aggregate(
+                { emptyState() },
+                { _, incoming, current -> mergeState(current, incoming) },
+                Materialized
+                    .`as`<String, ParcelJourneyState, KeyValueStore<Bytes, ByteArray>>(STATE_STORE_NAME)
+                    .withKeySerde(stringSerde)
+                    .withValueSerde(parcelJourneyStateSerde),
+            ).toStream()
+            .filter { _, state -> state.complete && !state.alreadyEmitted }
+            .mapValues(::toCompletedEvent)
             .to(topic, Produced.with(stringSerde, parcelJourneyCompletedSerde))
     }
 
-    private fun emptyState(): ParcelJourneyState =
-        ParcelJourneyState
-            .newBuilder()
-            .setParcelId("")
-            .setTrackingCode(null)
-            .setServicePoint(null)
-            .setReadyForDelivery(null)
-            .setDelivered(null)
-            .setComplete(false)
-            .setAlreadyEmitted(false)
-            .build()
+    private fun emptyState(): ParcelJourneyState = partialState("", null)
 
     private fun partialFromServicePoint(scan: ServicePointScan): ParcelJourneyState =
-        ParcelJourneyState
-            .newBuilder()
-            .setParcelId(scan.parcelId)
-            .setTrackingCode(scan.trackingCode)
-            .setServicePoint(scan)
-            .setReadyForDelivery(null)
-            .setDelivered(null)
-            .setComplete(false)
-            .setAlreadyEmitted(false)
-            .build()
+        partialState(scan.parcelId, scan.trackingCode, servicePoint = scan)
 
-    private fun partialFromReadyForDelivery(scan: SortingCenterScan): ParcelJourneyState =
-        ParcelJourneyState
-            .newBuilder()
-            .setParcelId(scan.parcelId)
-            .setTrackingCode(scan.trackingCode)
-            .setServicePoint(null)
-            .setReadyForDelivery(scan)
-            .setDelivered(null)
-            .setComplete(false)
-            .setAlreadyEmitted(false)
-            .build()
+    private fun partialFromSortingCenter(scan: SortingCenterScan): ParcelJourneyState =
+        partialState(scan.parcelId, scan.trackingCode, readyForDelivery = scan)
 
     private fun partialFromDelivered(scan: DeliveryScan): ParcelJourneyState =
+        partialState(scan.parcelId, scan.trackingCode, delivered = scan)
+
+    private fun partialState(
+        parcelId: String,
+        trackingCode: String?,
+        servicePoint: ServicePointScan? = null,
+        readyForDelivery: SortingCenterScan? = null,
+        delivered: DeliveryScan? = null,
+    ): ParcelJourneyState =
         ParcelJourneyState
             .newBuilder()
-            .setParcelId(scan.parcelId)
-            .setTrackingCode(scan.trackingCode)
-            .setServicePoint(null)
-            .setReadyForDelivery(null)
-            .setDelivered(scan)
+            .setParcelId(parcelId)
+            .setTrackingCode(trackingCode)
+            .setServicePoint(servicePoint)
+            .setReadyForDelivery(readyForDelivery)
+            .setDelivered(delivered)
             .setComplete(false)
             .setAlreadyEmitted(false)
             .build()
@@ -168,7 +118,7 @@ class ParcelTrackingTopology(
         current: ParcelJourneyState,
         incoming: ParcelJourneyState,
     ): ParcelJourneyState {
-        val parcelId = listOf(current.parcelId, incoming.parcelId).firstOrNull { !it.isNullOrBlank() }.orEmpty()
+        val parcelId = current.parcelId.takeUnless { it.isNullOrBlank() } ?: incoming.parcelId.orEmpty()
         val trackingCode = current.trackingCode ?: incoming.trackingCode
         val servicePoint = current.servicePoint ?: incoming.servicePoint
         val readyForDelivery = current.readyForDelivery ?: incoming.readyForDelivery
