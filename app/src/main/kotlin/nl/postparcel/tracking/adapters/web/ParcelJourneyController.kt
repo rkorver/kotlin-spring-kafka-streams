@@ -2,7 +2,7 @@ package nl.postparcel.tracking.adapters.web
 
 import nl.postparcel.tracking.domain.model.CompletedParcelJourney
 import nl.postparcel.tracking.domain.model.ParcelId
-import nl.postparcel.tracking.domain.service.ParcelJourneyService
+import nl.postparcel.tracking.domain.port.inbound.ParcelJourneyPort
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -12,14 +12,14 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/parcels")
 class ParcelJourneyController(
-    private val parcelJourneyService: ParcelJourneyService,
+    private val parcelJourneyPort: ParcelJourneyPort,
 ) {
     @GetMapping("/{parcelId}")
     fun getJourney(
         @PathVariable parcelId: String,
     ): ResponseEntity<ParcelJourneyResponse> =
         ParcelId(parcelId)
-            .let(parcelJourneyService::getParcelJourneyById)
+            .let(parcelJourneyPort::getParcelJourneyById)
             ?.toResponse()
             ?.let { ResponseEntity.ok(it) }
             ?: ResponseEntity.notFound().build()

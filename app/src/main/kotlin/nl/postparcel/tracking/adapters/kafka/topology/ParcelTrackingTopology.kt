@@ -69,7 +69,7 @@ class ParcelTrackingTopology(
     private fun mergeAndAggregateToTopic(
         builder: StreamsBuilder,
         servicePointStream: KStream<String, ParcelJourneyState>,
-        readyForDeliveryStream: KStream<String, ParcelJourneyState>,
+        sortingCenterStream: KStream<String, ParcelJourneyState>,
         deliveredStream: KStream<String, ParcelJourneyState>,
         topic: String,
     ) {
@@ -110,7 +110,7 @@ class ParcelTrackingTopology(
             }
 
         servicePointStream
-            .merge(readyForDeliveryStream)
+            .merge(sortingCenterStream)
             .merge(deliveredStream)
             .process(processorSupplier, Named.`as`("journey-aggregator"), STATE_STORE_NAME)
             .to(topic, Produced.with(stringSerde, parcelJourneyCompletedSerde))
