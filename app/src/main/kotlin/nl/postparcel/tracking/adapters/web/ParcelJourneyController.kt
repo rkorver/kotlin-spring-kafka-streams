@@ -28,13 +28,13 @@ class ParcelJourneyController(
 data class ParcelJourneyResponse(
     val parcelId: String,
     val trackingCode: String,
-    val postalOfficeCity: String,
+    val servicePointId: String,
     val receivedAt: String,
-    val sortingCenterCity: String,
+    val sortingCenterId: String,
     val readyForDeliveryAt: String,
     val deliveryCity: String,
     val deliveredAt: String,
-    val receivedBy: String,
+    val deliveryType: String,
     val totalDurationMillis: Long,
 )
 
@@ -42,12 +42,12 @@ private fun CompletedParcelJourney.toResponse(): ParcelJourneyResponse =
     ParcelJourneyResponse(
         parcelId = parcelId.value,
         trackingCode = trackingCode.value,
-        postalOfficeCity = postalOffice.postalOfficeCity,
-        receivedAt = postalOffice.scannedAt.toString(),
-        sortingCenterCity = readyForDelivery.sortingCenterCity,
+        servicePointId = servicePoint.servicePointId,
+        receivedAt = servicePoint.scannedAt.toString(),
+        sortingCenterId = readyForDelivery.sortingCenterId,
         readyForDeliveryAt = readyForDelivery.scannedAt.toString(),
         deliveryCity = delivered.deliveryAddress.city,
-        deliveredAt = delivered.deliveredAt.toString(),
-        receivedBy = delivered.receivedBy.name,
+        deliveredAt = delivered.scannedAt.toString(),
+        deliveryType = delivered.deliveryType.name,
         totalDurationMillis = totalDuration.toMillis(),
     )

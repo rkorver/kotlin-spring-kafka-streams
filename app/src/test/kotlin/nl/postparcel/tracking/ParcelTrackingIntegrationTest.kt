@@ -5,10 +5,10 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer
 import nl.postparcel.tracking.domain.model.ParcelId
 import nl.postparcel.tracking.domain.model.TrackingCode
 import nl.postparcel.tracking.domain.service.ParcelJourneyService
-import nl.postparcel.tracking.events.v1.SortingCenterEventType
+import nl.postparcel.tracking.events.v1.SortingCenterScanType
 import nl.postparcel.tracking.fixtures.ParcelEventFixtures.delivered
-import nl.postparcel.tracking.fixtures.ParcelEventFixtures.postalOffice
-import nl.postparcel.tracking.fixtures.ParcelEventFixtures.sortingCenterEvent
+import nl.postparcel.tracking.fixtures.ParcelEventFixtures.servicePoint
+import nl.postparcel.tracking.fixtures.ParcelEventFixtures.sortingCenterScan
 import nl.postparcel.tracking.topics.KafkaTopics
 import org.apache.avro.specific.SpecificRecord
 import org.apache.kafka.clients.admin.AdminClient
@@ -55,11 +55,11 @@ class ParcelTrackingIntegrationTest {
 
         publish(
             parcelId.value,
-            KafkaTopics.PARCEL_RECEIVED to postalOffice(parcelId.value, trackingCode, receivedAt),
+            KafkaTopics.PARCEL_RECEIVED to servicePoint(parcelId.value, trackingCode, receivedAt),
             KafkaTopics.SORTING_CENTER_EVENTS to
-                sortingCenterEvent(parcelId.value, trackingCode, SortingCenterEventType.ARRIVED, readyAt.minusSeconds(3600)),
+                sortingCenterScan(parcelId.value, trackingCode, SortingCenterScanType.ARRIVED, readyAt.minusSeconds(3600)),
             KafkaTopics.SORTING_CENTER_EVENTS to
-                sortingCenterEvent(parcelId.value, trackingCode, SortingCenterEventType.READY_FOR_DELIVERY, readyAt),
+                sortingCenterScan(parcelId.value, trackingCode, SortingCenterScanType.READY_FOR_DELIVERY, readyAt),
             KafkaTopics.PARCEL_DELIVERED to delivered(parcelId.value, trackingCode, deliveredAt),
         )
 
@@ -67,7 +67,7 @@ class ParcelTrackingIntegrationTest {
             val persisted = parcelJourneyService.getParcelJourneyById(parcelId)
             assertThat(persisted).isNotNull
             assertThat(persisted?.trackingCode).isEqualTo(TrackingCode(trackingCode))
-            assertThat(persisted?.postalOffice?.postalOfficeCity).isEqualTo("Amsterdam")
+            assertThat(persisted?.servicePoint?.servicePointId).isEqualTo("SP-AMS-042")
         }
     }
 
@@ -79,7 +79,7 @@ class ParcelTrackingIntegrationTest {
 
         publish(
             parcelId.value,
-            KafkaTopics.PARCEL_RECEIVED to postalOffice(parcelId.value, trackingCode, now),
+            KafkaTopics.PARCEL_RECEIVED to servicePoint(parcelId.value, trackingCode, now),
             KafkaTopics.PARCEL_DELIVERED to delivered(parcelId.value, trackingCode, now.plusSeconds(180)),
         )
 
@@ -96,11 +96,11 @@ class ParcelTrackingIntegrationTest {
 
         publish(
             parcelId.value,
-            KafkaTopics.PARCEL_RECEIVED to postalOffice(parcelId.value, trackingCode, now),
+            KafkaTopics.PARCEL_RECEIVED to servicePoint(parcelId.value, trackingCode, now),
             KafkaTopics.SORTING_CENTER_EVENTS to
-                sortingCenterEvent(parcelId.value, trackingCode, SortingCenterEventType.ARRIVED, now.plusSeconds(60)),
+                sortingCenterScan(parcelId.value, trackingCode, SortingCenterScanType.ARRIVED, now.plusSeconds(60)),
             KafkaTopics.SORTING_CENTER_EVENTS to
-                sortingCenterEvent(parcelId.value, trackingCode, SortingCenterEventType.EXCEPTION, now.plusSeconds(120)),
+                sortingCenterScan(parcelId.value, trackingCode, SortingCenterScanType.EXCEPTION, now.plusSeconds(120)),
             KafkaTopics.PARCEL_DELIVERED to delivered(parcelId.value, trackingCode, now.plusSeconds(180)),
         )
 
@@ -111,7 +111,7 @@ class ParcelTrackingIntegrationTest {
         publish(
             parcelId.value,
             KafkaTopics.SORTING_CENTER_EVENTS to
-                sortingCenterEvent(parcelId.value, trackingCode, SortingCenterEventType.READY_FOR_DELIVERY, now.plusSeconds(240)),
+                sortingCenterScan(parcelId.value, trackingCode, SortingCenterScanType.READY_FOR_DELIVERY, now.plusSeconds(240)),
         )
 
         await atMost Duration.ofSeconds(60) untilAsserted {

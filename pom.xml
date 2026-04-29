@@ -166,6 +166,7 @@
                                 <target name="ktlint">
                                     <java classname="com.pinterest.ktlint.Main" classpathref="maven.plugin.classpath" dir="${basedir}" failonerror="true" fork="true" taskname="ktlint">
                                         <jvmarg value="--add-opens=java.base/java.lang=ALL-UNNAMED"/>
+                                        <jvmarg value="--sun-misc-unsafe-memory-access=allow"/>
                                         <arg value="-F"/>
                                         <arg value="src/**/*.kt"/>
                                     </java>
@@ -181,6 +182,8 @@
                             <configuration>
                                 <target name="ktlint">
                                     <java classname="com.pinterest.ktlint.Main" classpathref="maven.plugin.classpath" dir="${basedir}" failonerror="true" fork="true" taskname="ktlint">
+                                        <jvmarg value="--add-opens=java.base/java.lang=ALL-UNNAMED"/>
+                                        <jvmarg value="--sun-misc-unsafe-memory-access=allow"/>
                                         <arg value="src/**/*.kt"/>
                                     </java>
                                 </target>

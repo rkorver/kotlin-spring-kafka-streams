@@ -5,26 +5,26 @@ import java.time.Duration
 data class ParcelJourney(
     val parcelId: ParcelId,
     val trackingCode: TrackingCode?,
-    val postalOffice: PostalOfficeScan?,
-    val readyForDelivery: ReadyForDeliveryScan?,
-    val delivered: DeliveryScan?,
+    val servicePoint: ServicePointEvent?,
+    val readyForDelivery: ReadyForDeliveryEvent?,
+    val delivered: DeliveryEvent?,
 ) {
-    fun withPostalOffice(
-        scan: PostalOfficeScan,
+    fun withServicePoint(
+        event: ServicePointEvent,
         trackingCode: TrackingCode,
-    ): ParcelJourney = copy(postalOffice = scan, trackingCode = this.trackingCode ?: trackingCode)
+    ): ParcelJourney = copy(servicePoint = event, trackingCode = this.trackingCode ?: trackingCode)
 
     fun withReadyForDelivery(
-        scan: ReadyForDeliveryScan,
+        event: ReadyForDeliveryEvent,
         trackingCode: TrackingCode,
-    ): ParcelJourney = copy(readyForDelivery = scan, trackingCode = this.trackingCode ?: trackingCode)
+    ): ParcelJourney = copy(readyForDelivery = event, trackingCode = this.trackingCode ?: trackingCode)
 
     fun withDelivered(
-        scan: DeliveryScan,
+        event: DeliveryEvent,
         trackingCode: TrackingCode,
-    ): ParcelJourney = copy(delivered = scan, trackingCode = this.trackingCode ?: trackingCode)
+    ): ParcelJourney = copy(delivered = event, trackingCode = this.trackingCode ?: trackingCode)
 
-    fun isComplete(): Boolean = postalOffice != null && readyForDelivery != null && delivered != null
+    fun isComplete(): Boolean = servicePoint != null && readyForDelivery != null && delivered != null
 
     fun toCompleted(): CompletedParcelJourney {
         check(isComplete()) { "Journey $parcelId is not complete yet" }
@@ -32,10 +32,10 @@ data class ParcelJourney(
         return CompletedParcelJourney(
             parcelId = parcelId,
             trackingCode = code,
-            postalOffice = postalOffice!!,
+            servicePoint = servicePoint!!,
             readyForDelivery = readyForDelivery!!,
             delivered = delivered!!,
-            totalDuration = Duration.between(postalOffice.scannedAt, delivered.deliveredAt),
+            totalDuration = Duration.between(servicePoint.scannedAt, delivered.scannedAt),
         )
     }
 
@@ -44,7 +44,7 @@ data class ParcelJourney(
             ParcelJourney(
                 parcelId = parcelId,
                 trackingCode = null,
-                postalOffice = null,
+                servicePoint = null,
                 readyForDelivery = null,
                 delivered = null,
             )
@@ -54,8 +54,8 @@ data class ParcelJourney(
 data class CompletedParcelJourney(
     val parcelId: ParcelId,
     val trackingCode: TrackingCode,
-    val postalOffice: PostalOfficeScan,
-    val readyForDelivery: ReadyForDeliveryScan,
-    val delivered: DeliveryScan,
+    val servicePoint: ServicePointEvent,
+    val readyForDelivery: ReadyForDeliveryEvent,
+    val delivered: DeliveryEvent,
     val totalDuration: Duration,
 )

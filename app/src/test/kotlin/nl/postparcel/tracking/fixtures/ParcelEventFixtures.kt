@@ -1,11 +1,11 @@
 package nl.postparcel.tracking.fixtures
 
 import nl.postparcel.tracking.events.v1.Address
-import nl.postparcel.tracking.events.v1.ParcelDeliveredToCustomer
-import nl.postparcel.tracking.events.v1.ParcelReceivedAtPostalOffice
-import nl.postparcel.tracking.events.v1.ReceiverType
-import nl.postparcel.tracking.events.v1.SortingCenterEvent
-import nl.postparcel.tracking.events.v1.SortingCenterEventType
+import nl.postparcel.tracking.events.v1.DeliveryScan
+import nl.postparcel.tracking.events.v1.DeliveryType
+import nl.postparcel.tracking.events.v1.ServicePointScan
+import nl.postparcel.tracking.events.v1.SortingCenterScan
+import nl.postparcel.tracking.events.v1.SortingCenterScanType
 import java.time.Instant
 
 object ParcelEventFixtures {
@@ -20,23 +20,21 @@ object ParcelEventFixtures {
             .setCountry("NL")
             .build()
 
-    fun postalOffice(
+    fun servicePoint(
         parcelId: String,
         trackingCode: String,
         at: Instant,
-        postalOfficeId: String = "PO-AMS-042",
-        postalOfficeCity: String = "Amsterdam",
+        servicePointId: String = "SP-AMS-042",
         senderCity: String = "Amsterdam",
         recipientCity: String = "Utrecht",
         weightGrams: Int = 850,
         employeeId: String = "emp-17",
-    ): ParcelReceivedAtPostalOffice =
-        ParcelReceivedAtPostalOffice
+    ): ServicePointScan =
+        ServicePointScan
             .newBuilder()
             .setParcelId(parcelId)
             .setTrackingCode(trackingCode)
-            .setPostalOfficeId(postalOfficeId)
-            .setPostalOfficeCity(postalOfficeCity)
+            .setServicePointId(servicePointId)
             .setSender(address(senderCity))
             .setRecipient(address(recipientCity))
             .setWeightGrams(weightGrams)
@@ -44,24 +42,22 @@ object ParcelEventFixtures {
             .setEmployeeId(employeeId)
             .build()
 
-    fun sortingCenterEvent(
+    fun sortingCenterScan(
         parcelId: String,
         trackingCode: String,
-        type: SortingCenterEventType,
+        type: SortingCenterScanType,
         at: Instant,
         sortingCenterId: String = "SC-HTN-01",
-        sortingCenterCity: String = "Houten",
         belt: String = "B-7",
-        destinationHub: String? = if (type == SortingCenterEventType.READY_FOR_DELIVERY) "HUB-UTR" else null,
+        destinationHub: String? = if (type == SortingCenterScanType.READY_FOR_DELIVERY) "HUB-UTR" else null,
         remarks: String? = null,
-    ): SortingCenterEvent =
-        SortingCenterEvent
+    ): SortingCenterScan =
+        SortingCenterScan
             .newBuilder()
             .setParcelId(parcelId)
             .setTrackingCode(trackingCode)
             .setSortingCenterId(sortingCenterId)
-            .setSortingCenterCity(sortingCenterCity)
-            .setEventType(type)
+            .setScanType(type)
             .setDestinationHub(destinationHub)
             .setBelt(belt)
             .setScannedAt(at)
@@ -73,18 +69,18 @@ object ParcelEventFixtures {
         trackingCode: String,
         at: Instant,
         deliveryCity: String = "Utrecht",
-        receivedBy: ReceiverType = ReceiverType.CUSTOMER,
+        deliveryType: DeliveryType = DeliveryType.TO_DOOR,
         courierId: String = "courier-99",
         signatureBase64: String? = null,
         photoEvidenceUrl: String? = null,
-    ): ParcelDeliveredToCustomer =
-        ParcelDeliveredToCustomer
+    ): DeliveryScan =
+        DeliveryScan
             .newBuilder()
             .setParcelId(parcelId)
             .setTrackingCode(trackingCode)
-            .setDeliveredAt(at)
+            .setScannedAt(at)
             .setDeliveryAddress(address(deliveryCity))
-            .setReceivedBy(receivedBy)
+            .setDeliveryType(deliveryType)
             .setSignatureBase64(signatureBase64)
             .setCourierId(courierId)
             .setPhotoEvidenceUrl(photoEvidenceUrl)

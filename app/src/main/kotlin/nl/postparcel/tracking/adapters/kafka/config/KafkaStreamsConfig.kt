@@ -4,11 +4,11 @@ import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.SCHEMA_REGI
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
 import nl.postparcel.tracking.adapters.kafka.serde.AvroSerdes
-import nl.postparcel.tracking.events.v1.ParcelDeliveredToCustomer
+import nl.postparcel.tracking.events.v1.DeliveryScan
 import nl.postparcel.tracking.events.v1.ParcelJourneyCompleted
 import nl.postparcel.tracking.events.v1.ParcelJourneyState
-import nl.postparcel.tracking.events.v1.ParcelReceivedAtPostalOffice
-import nl.postparcel.tracking.events.v1.SortingCenterEvent
+import nl.postparcel.tracking.events.v1.ServicePointScan
+import nl.postparcel.tracking.events.v1.SortingCenterScan
 import org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG
 import org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG
 import org.apache.kafka.common.serialization.Serde
@@ -54,13 +54,13 @@ class KafkaStreamsConfig(
     fun stringSerdes(): Serde<String> = Serdes.String()
 
     @Bean
-    fun parcelReceivedSerde(serdes: AvroSerdes): SpecificAvroSerde<ParcelReceivedAtPostalOffice> = serdes.create()
+    fun servicePointScanSerde(serdes: AvroSerdes): SpecificAvroSerde<ServicePointScan> = serdes.create()
 
     @Bean
-    fun sortingCenterEventSerde(serdes: AvroSerdes): SpecificAvroSerde<SortingCenterEvent> = serdes.create()
+    fun sortingCenterScanSerde(serdes: AvroSerdes): SpecificAvroSerde<SortingCenterScan> = serdes.create()
 
     @Bean
-    fun parcelDeliveredSerde(serdes: AvroSerdes): SpecificAvroSerde<ParcelDeliveredToCustomer> = serdes.create()
+    fun deliveryScanSerde(serdes: AvroSerdes): SpecificAvroSerde<DeliveryScan> = serdes.create()
 
     @Bean
     fun parcelJourneyStateSerde(serdes: AvroSerdes): SpecificAvroSerde<ParcelJourneyState> = serdes.create()

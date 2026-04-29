@@ -1,8 +1,8 @@
 package nl.postparcel.tracking.adapters.kafka.mapper
 
-import nl.postparcel.tracking.adapters.kafka.mapper.AvroDomainMappers.toDeliveryScan
-import nl.postparcel.tracking.adapters.kafka.mapper.AvroDomainMappers.toPostalOfficeScan
-import nl.postparcel.tracking.adapters.kafka.mapper.AvroDomainMappers.toReadyForDeliveryScan
+import nl.postparcel.tracking.adapters.kafka.mapper.AvroDomainMappers.toDeliveryEvent
+import nl.postparcel.tracking.adapters.kafka.mapper.AvroDomainMappers.toReadyForDeliveryEvent
+import nl.postparcel.tracking.adapters.kafka.mapper.AvroDomainMappers.toServicePointEvent
 import nl.postparcel.tracking.domain.model.CompletedParcelJourney
 import nl.postparcel.tracking.domain.model.ParcelId
 import nl.postparcel.tracking.domain.model.TrackingCode
@@ -14,9 +14,9 @@ object CompletedJourneyMapper {
         CompletedParcelJourney(
             parcelId = ParcelId(parcelId),
             trackingCode = TrackingCode(trackingCode),
-            postalOffice = postalOffice.toPostalOfficeScan(),
-            readyForDelivery = readyForDelivery.toReadyForDeliveryScan(),
-            delivered = delivered.toDeliveryScan(),
+            servicePoint = servicePoint.toServicePointEvent(),
+            readyForDelivery = readyForDelivery.toReadyForDeliveryEvent(),
+            delivered = delivered.toDeliveryEvent(),
             totalDuration = Duration.ofMillis(totalDurationMillis),
         )
 }

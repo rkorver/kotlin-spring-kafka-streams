@@ -2,16 +2,15 @@ package nl.postparcel.tracking.domain.model
 
 import java.time.Instant
 
-enum class ReceiverType {
-    CUSTOMER,
+enum class DeliveryType {
+    TO_DOOR,
     NEIGHBOUR,
     MAILBOX,
     PICKUP_POINT,
 }
 
-data class PostalOfficeScan(
-    val postalOfficeId: String,
-    val postalOfficeCity: String,
+data class ServicePointEvent(
+    val servicePointId: String,
     val sender: Address,
     val recipient: Address,
     val weightGrams: Int,
@@ -19,18 +18,17 @@ data class PostalOfficeScan(
     val employeeId: String?,
 )
 
-data class ReadyForDeliveryScan(
+data class ReadyForDeliveryEvent(
     val sortingCenterId: String,
-    val sortingCenterCity: String,
     val destinationHub: String?,
     val belt: String?,
     val scannedAt: Instant,
 )
 
-data class DeliveryScan(
-    val deliveredAt: Instant,
+data class DeliveryEvent(
+    val scannedAt: Instant,
     val deliveryAddress: Address,
-    val receivedBy: ReceiverType,
+    val deliveryType: DeliveryType,
     val courierId: String,
     val signatureBase64: String?,
     val photoEvidenceUrl: String?,

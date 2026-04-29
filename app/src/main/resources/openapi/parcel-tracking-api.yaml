@@ -32,24 +32,24 @@ components:
       required:
         - parcelId
         - trackingCode
-        - postalOfficeCity
+        - servicePointId
         - receivedAt
-        - sortingCenterCity
+        - sortingCenterId
         - readyForDeliveryAt
         - deliveryCity
         - deliveredAt
-        - receivedBy
+        - deliveryType
         - totalDurationMillis
       properties:
         parcelId:
           type: string
         trackingCode:
           type: string
-        postalOfficeCity:
+        servicePointId:
           type: string
         receivedAt:
           type: string
-        sortingCenterCity:
+        sortingCenterId:
           type: string
         readyForDeliveryAt:
           type: string
@@ -57,7 +57,7 @@ components:
           type: string
         deliveredAt:
           type: string
-        receivedBy:
+        deliveryType:
           type: string
         totalDurationMillis:
           type: integer
