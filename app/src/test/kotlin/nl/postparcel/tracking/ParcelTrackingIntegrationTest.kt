@@ -21,6 +21,7 @@ import org.apache.kafka.common.serialization.StringSerializer
 import org.assertj.core.api.Assertions.assertThat
 import org.awaitility.kotlin.atMost
 import org.awaitility.kotlin.await
+import org.awaitility.kotlin.during
 import org.awaitility.kotlin.untilAsserted
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -82,8 +83,9 @@ class ParcelTrackingIntegrationTest {
             KafkaTopics.PARCEL_DELIVERED to delivered(parcelId.value, trackingCode, now.plusSeconds(180)),
         )
 
-        Thread.sleep(5_000)
-        assertThat(parcelJourneyService.getParcelJourneyById(parcelId)).isNull()
+        await during Duration.ofSeconds(2) atMost Duration.ofSeconds(3) untilAsserted {
+            assertThat(parcelJourneyService.getParcelJourneyById(parcelId)).isNull()
+        }
     }
 
     @Test
@@ -102,8 +104,9 @@ class ParcelTrackingIntegrationTest {
             KafkaTopics.PARCEL_DELIVERED to delivered(parcelId.value, trackingCode, now.plusSeconds(180)),
         )
 
-        Thread.sleep(5_000)
-        assertThat(parcelJourneyService.getParcelJourneyById(parcelId)).isNull()
+        await during Duration.ofSeconds(2) atMost Duration.ofSeconds(3) untilAsserted {
+            assertThat(parcelJourneyService.getParcelJourneyById(parcelId)).isNull()
+        }
 
         publish(
             parcelId.value,
