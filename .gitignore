@@ -1,5 +1,4 @@
 target/
-!.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
@@ -18,7 +17,11 @@ out/
 .factorypath
 
 HELP.md
-.mvn/
+.mvn/*
+!.mvn/wrapper/
+.mvn/wrapper/*
+!.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
 
 build/
 !**/src/main/**/build/
