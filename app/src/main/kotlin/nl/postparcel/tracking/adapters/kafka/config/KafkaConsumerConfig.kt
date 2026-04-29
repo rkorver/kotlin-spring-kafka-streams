@@ -36,5 +36,5 @@ class KafkaConsumerConfig(
     @Bean
     fun avroKafkaListenerContainerFactory(avroConsumerFactory: ConsumerFactory<String, Any>) =
         ConcurrentKafkaListenerContainerFactory<String, Any>()
-            .apply { consumerFactory = avroConsumerFactory }
+            .apply { setConsumerFactory(avroConsumerFactory) }
 }

@@ -12,13 +12,16 @@ import nl.postparcel.tracking.topics.KafkaTopics.PARCEL_DELIVERED
 import nl.postparcel.tracking.topics.KafkaTopics.PARCEL_RECEIVED
 import nl.postparcel.tracking.topics.KafkaTopics.SORTING_CENTER_EVENTS
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.kstream.Consumed
 import org.apache.kafka.streams.kstream.KStream
+import org.apache.kafka.streams.kstream.Named
 import org.apache.kafka.streams.kstream.Produced
-import org.apache.kafka.streams.kstream.Transformer
-import org.apache.kafka.streams.processor.ProcessorContext
+import org.apache.kafka.streams.kstream.Repartitioned
+import org.apache.kafka.streams.processor.api.Processor
+import org.apache.kafka.streams.processor.api.ProcessorContext
+import org.apache.kafka.streams.processor.api.ProcessorSupplier
+import org.apache.kafka.streams.processor.api.Record
 import org.apache.kafka.streams.state.KeyValueStore
 import org.apache.kafka.streams.state.Stores
 import org.springframework.stereotype.Component
@@ -53,7 +56,13 @@ class ParcelTrackingTopology(
                 .selectKey { _, value -> value.parcelId }
                 .mapValues(::partialFromDelivered)
 
-        mergeAndAggregateToTopic(builder, postalOfficeStream, readyForDeliveryStream, deliveredStream)(JOURNEY_COMPLETED)
+        mergeAndAggregateToTopic(
+            builder,
+            postalOfficeStream,
+            readyForDeliveryStream,
+            deliveredStream,
+            JOURNEY_COMPLETED,
+        )
 
         return builder
     }
@@ -63,7 +72,8 @@ class ParcelTrackingTopology(
         a: KStream<String, ParcelJourneyState>,
         b: KStream<String, ParcelJourneyState>,
         c: KStream<String, ParcelJourneyState>,
-    ) = { topic: String ->
+        topic: String,
+    ) {
         builder.addStateStore(
             Stores.keyValueStoreBuilder(
                 Stores.persistentKeyValueStore(STATE_STORE_NAME),
@@ -72,38 +82,38 @@ class ParcelTrackingTopology(
             ),
         )
 
+        val processorSupplier =
+            ProcessorSupplier<String, ParcelJourneyState, String, ParcelJourneyCompleted> {
+                object : Processor<String, ParcelJourneyState, String, ParcelJourneyCompleted> {
+                    private lateinit var context: ProcessorContext<String, ParcelJourneyCompleted>
+                    private lateinit var store: KeyValueStore<String, ParcelJourneyState>
+
+                    override fun init(context: ProcessorContext<String, ParcelJourneyCompleted>) {
+                        this.context = context
+                        @Suppress("UNCHECKED_CAST")
+                        store = context.getStateStore(STATE_STORE_NAME) as KeyValueStore<String, ParcelJourneyState>
+                    }
+
+                    override fun process(record: Record<String, ParcelJourneyState>) {
+                        val key = record.key()
+                        val incoming = record.value()
+                        val current = store.get(key) ?: emptyState()
+                        val merged = mergeState(current, incoming)
+
+                        if (merged.complete) {
+                            store.delete(key)
+                            context.forward(Record(key, toCompletedEvent(merged), record.timestamp()))
+                        } else {
+                            store.put(key, merged)
+                        }
+                    }
+                }
+            }
+
         a
             .merge(b)
             .merge(c)
-            .transform(
-                {
-                    object : Transformer<String, ParcelJourneyState, KeyValue<String, ParcelJourneyCompleted>?> {
-                        private lateinit var store: KeyValueStore<String, ParcelJourneyState>
-
-                        override fun init(context: ProcessorContext) {
-                            @Suppress("UNCHECKED_CAST")
-                            store = context.getStateStore(STATE_STORE_NAME) as KeyValueStore<String, ParcelJourneyState>
-                        }
-
-                        override fun transform(key: String, incoming: ParcelJourneyState): KeyValue<String, ParcelJourneyCompleted>? {
-                            val current = store.get(key) ?: emptyState()
-                            val merged = mergeState(current, incoming)
-
-                            return if (merged.complete) {
-                                // Delete from store to keep it bounded to in-flight parcels only
-                                store.delete(key)
-                                KeyValue(key, toCompletedEvent(merged))
-                            } else {
-                                store.put(key, merged)
-                                null
-                            }
-                        }
-
-                        override fun close() {}
-                    }
-                },
-                STATE_STORE_NAME,
-            )
+            .process(processorSupplier, Named.`as`("journey-aggregator"), STATE_STORE_NAME)
             .to(topic, Produced.with(stringSerde, parcelJourneyCompletedSerde))
     }
 

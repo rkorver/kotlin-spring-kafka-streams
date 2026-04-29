@@ -11,6 +11,9 @@ import nl.postparcel.tracking.fixtures.ParcelEventFixtures.postalOffice
 import nl.postparcel.tracking.fixtures.ParcelEventFixtures.sortingCenterEvent
 import nl.postparcel.tracking.topics.KafkaTopics
 import org.apache.avro.specific.SpecificRecord
+import org.apache.kafka.clients.admin.AdminClient
+import org.apache.kafka.clients.admin.AdminClientConfig
+import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -24,12 +27,11 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
-import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.Network
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import org.testcontainers.kafka.ConfluentKafkaContainer
 import org.testcontainers.postgresql.PostgreSQLContainer
+import org.testcontainers.redpanda.RedpandaContainer
 import org.testcontainers.utility.DockerImageName
 import java.time.Duration
 import java.time.Instant
@@ -129,7 +131,7 @@ class ParcelTrackingIntegrationTest {
     private fun producer(): KafkaProducer<String, SpecificRecord> {
         val props =
             Properties().apply {
-                put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.bootstrapServers)
+                put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, redpanda.bootstrapServers)
                 put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer::class.java)
                 put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer::class.java)
                 put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl())
@@ -143,40 +145,41 @@ class ParcelTrackingIntegrationTest {
 
         @Container
         @JvmStatic
-        val kafka: ConfluentKafkaContainer =
-            ConfluentKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"))
+        val redpanda: RedpandaContainer =
+            RedpandaContainer(DockerImageName.parse("docker.redpanda.com/redpandadata/redpanda:v24.3.1"))
                 .withNetwork(NETWORK)
-                .withNetworkAliases("kafka")
-                .withListener("kafka:19092")
-
-        @Container
-        @JvmStatic
-        val schemaRegistry: GenericContainer<*> =
-            GenericContainer(DockerImageName.parse("confluentinc/cp-schema-registry:7.6.1"))
-                .withNetwork(NETWORK)
-                .withNetworkAliases("schema-registry")
-                .withExposedPorts(8081)
-                .withEnv("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")
-                .withEnv("SCHEMA_REGISTRY_LISTENERS", "http://0.0.0.0:8081")
-                .withEnv("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "PLAINTEXT://kafka:19092")
-                .dependsOn(kafka)
+                .withNetworkAliases("redpanda")
 
         @Container
         @JvmStatic
         val postgres: PostgreSQLContainer =
-            PostgreSQLContainer(DockerImageName.parse("postgres:16-alpine"))
+            PostgreSQLContainer(DockerImageName.parse("postgres:17-alpine"))
                 .withDatabaseName("parcel_tracking")
                 .withUsername("parcel")
                 .withPassword("parcel")
 
         @JvmStatic
-        fun schemaRegistryUrl(): String = "http://${schemaRegistry.host}:${schemaRegistry.getMappedPort(8081)}"
+        fun schemaRegistryUrl(): String = redpanda.schemaRegistryAddress
+
+        private fun createTopics() {
+            AdminClient.create(mapOf(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to redpanda.bootstrapServers)).use { admin ->
+                val topics =
+                    listOf(
+                        KafkaTopics.PARCEL_RECEIVED,
+                        KafkaTopics.SORTING_CENTER_EVENTS,
+                        KafkaTopics.PARCEL_DELIVERED,
+                        KafkaTopics.JOURNEY_COMPLETED,
+                    ).map { NewTopic(it, 3, 1.toShort()) }
+                admin.createTopics(topics).all().get()
+            }
+        }
 
         @JvmStatic
         @DynamicPropertySource
         fun properties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.kafka.bootstrap-servers") { kafka.bootstrapServers }
-            registry.add("spring.kafka.properties.schema.registry.url") { schemaRegistryUrl() }
+            createTopics()
+            registry.add("spring.kafka.bootstrap-servers") { redpanda.bootstrapServers }
+            registry.add("spring.kafka.properties.schema.registry.url") { redpanda.schemaRegistryAddress }
             registry.add("spring.datasource.url") { postgres.jdbcUrl }
             registry.add("spring.datasource.username") { postgres.username }
             registry.add("spring.datasource.password") { postgres.password }
