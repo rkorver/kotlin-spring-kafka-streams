@@ -41,7 +41,7 @@ The **domain** has no dependencies on frameworks or infrastructure. Adapters imp
 | Domain | `domain.service` | `ParcelJourneyService` — orchestrates persistence |
 | Adapter | `adapters.kafka.topology` | Kafka Streams topology (event aggregation) |
 | Adapter | `adapters.kafka.consumer` | `@KafkaListener` for completed journeys |
-| Adapter | `adapters.persistence` | JPA implementation of `ParcelJourneyRepository` |
+| Adapter | `adapters.persistence` | jOOQ implementation of `ParcelJourneyRepository` |
 | Adapter | `adapters.web` | REST controller (`GET /parcels/{id}`) |
 | SPI | `spi` | Avro schemas, shared topic names, handler contracts |
 | API | `api` | REST API interface and response DTOs |
@@ -71,20 +71,7 @@ Three Kafka topics carry parcel lifecycle events, each produced by an independen
 3. A `Transformer` with a local RocksDB state store accumulates partial state
 4. Once all three checkpoints are present, a `ParcelJourneyCompleted` event is emitted
 5. The state store entry is **deleted** immediately — keeping the store bounded to in-flight parcels only
-6. A plain `@KafkaListener` consumes completed events and persists them via JPA
-
-## Why Kafka Streams + Keyed State Store
-
-Each parcel's state is held in a RocksDB-backed `KeyValueStore`, keyed by `parcelId`. This works well because:
-
-- **Automatic sharding** — state is partitioned across stream tasks, no single bottleneck
-- **Horizontal scaling** — add more instances to distribute partitions
-- **Disk-backed** — RocksDB spills to disk, so millions of in-flight parcels don't require memory proportional to state size
-- **Bounded state** — completed journeys are deleted from the store immediately via the Transformer, so the store only holds parcels currently in transit
-
-### Why Transformer instead of KTable aggregate
-
-A plain `.aggregate()` on a `KTable` would keep every parcel's state **forever** — including completed ones. At scale (e.g. 1M parcels/day), this becomes an unbounded storage leak. The `Transformer` gives direct access to the state store, allowing us to `delete(key)` after emitting the completed event.
+6. A plain `@KafkaListener` consumes completed events and persists them via jOOQ
 
 ## Multi-Module Structure
 
@@ -96,19 +83,19 @@ A plain `.aggregate()` on a `KTable` would keep every parcel's state **forever**
 
 ## Tech Stack
 
-- **Kotlin 1.9** / **Java 21**
-- **Spring Boot 3.3** with Spring Kafka
-- **Kafka Streams** (Confluent 7.6)
-- **Avro** for event serialization (Schema Registry)
-- **PostgreSQL** + Flyway + Spring Data JPA
-- **Testcontainers** for integration tests (Kafka, Schema Registry, PostgreSQL)
+- **Kotlin 2.3** / **Java 25**
+- **Spring Boot 4.0** with Spring Kafka
+- **Kafka Streams** (Confluent 8.1)
+- **Avro 1.12** for event serialization (Schema Registry)
+- **PostgreSQL** + Flyway + **jOOQ**
+- **Testcontainers 2.0** for integration tests (Redpanda, PostgreSQL)
 
 ## Running Locally
 
 ### Prerequisites
 
-- Java 21+
-- Docker (for Testcontainers and local infra)
+- Java 25+
+- Docker (for Testcontainers)
 
 ### Run tests
 
@@ -116,12 +103,12 @@ A plain `.aggregate()` on a `KTable` would keep every parcel's state **forever**
 ./mvnw verify
 ```
 
-### Start infrastructure
+### Run locally (with Testcontainers)
 
-Start Kafka, Schema Registry, and PostgreSQL (e.g. via Docker Compose or your preferred method), then:
+Starts the app with Testcontainers providing PostgreSQL, Redpanda (Kafka + Schema Registry):
 
 ```bash
-./mvnw spring-boot:run -pl app
+./mvnw spring-boot:test-run -pl app
 ```
 
 ### Query a completed journey
