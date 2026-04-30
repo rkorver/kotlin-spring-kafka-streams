@@ -2,7 +2,7 @@
   <configuration default="false" name="TestParcelTrackingApplication" type="JetBrainsRunConfiguration" factoryName="Kotlin">
     <module name="parcel-tracking-app" />
     <option name="MAIN_CLASS_NAME" value="nl.postparcel.tracking.TestParcelTrackingApplicationKt" />
-    <option name="VM_PARAMETERS" value="--enable-native-access=ALL-UNNAMED" />
+    <option name="VM_PARAMETERS" value="--enable-native-access=ALL-UNNAMED -Dspring.kafka.streams.state-dir=/tmp/kafka-streams-local" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

@@ -183,6 +183,11 @@ class ParcelTrackingIntegrationTest {
             createTopics()
             registry.add("spring.kafka.bootstrap-servers") { redpanda.bootstrapServers }
             registry.add("spring.kafka.properties.schema.registry.url") { redpanda.schemaRegistryAddress }
+            registry.add("spring.kafka.streams.state-dir") {
+                kotlin.io.path
+                    .createTempDirectory("kafka-streams-test")
+                    .toString()
+            }
             registry.add("spring.datasource.url") { postgres.jdbcUrl }
             registry.add("spring.datasource.username") { postgres.username }
             registry.add("spring.datasource.password") { postgres.password }

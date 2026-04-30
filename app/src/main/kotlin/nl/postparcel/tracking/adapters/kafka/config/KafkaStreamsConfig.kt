@@ -19,6 +19,7 @@ import org.apache.kafka.streams.StreamsConfig.BOOTSTRAP_SERVERS_CONFIG
 import org.apache.kafka.streams.StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG
 import org.apache.kafka.streams.StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG
 import org.apache.kafka.streams.StreamsConfig.PROCESSING_GUARANTEE_CONFIG
+import org.apache.kafka.streams.StreamsConfig.STATE_DIR_CONFIG
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -30,6 +31,10 @@ class KafkaStreamsConfig(
     @param:Value("\${spring.kafka.bootstrap-servers}") private val bootstrapServers: String,
     @param:Value("\${spring.kafka.properties.schema.registry.url}") private val schemaRegistryUrl: String,
     @param:Value("\${spring.application.name:parcel-tracking}") private val applicationName: String,
+    @param:Value(
+        "\${spring.kafka.streams.state-dir:#{T(System).getProperty('java.io.tmpdir') + '/kafka-streams'}}",
+    )
+    private val stateDir: String,
 ) {
     @Bean(name = [KafkaStreamsDefaultConfiguration.DEFAULT_STREAMS_CONFIG_BEAN_NAME])
     fun kafkaStreamsConfiguration() =
@@ -44,6 +49,7 @@ class KafkaStreamsConfig(
                 SPECIFIC_AVRO_READER_CONFIG to true,
                 AUTO_OFFSET_RESET_CONFIG to "earliest",
                 ACKS_CONFIG to "all",
+                STATE_DIR_CONFIG to stateDir,
             ),
         )
 

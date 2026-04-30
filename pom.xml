@@ -216,6 +216,9 @@
                             <ignoredUnusedDeclaredDependency>org.springframework.boot:spring-boot-starter-webflux</ignoredUnusedDeclaredDependency>
                             <ignoredUnusedDeclaredDependency>org.springframework.kafka:spring-kafka-test</ignoredUnusedDeclaredDependency>
                         </ignoredUnusedDeclaredDependencies>
+                        <ignoredNonTestScopedDependencies>
+                            <ignoredNonTestScopedDependency>io.confluent:kafka-schema-registry-client</ignoredNonTestScopedDependency>
+                        </ignoredNonTestScopedDependencies>
                     </configuration>
                     <executions>
                         <execution>

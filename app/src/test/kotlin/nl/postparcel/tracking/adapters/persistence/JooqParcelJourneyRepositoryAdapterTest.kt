@@ -8,7 +8,7 @@ import nl.postparcel.tracking.domain.model.ParcelId
 import nl.postparcel.tracking.domain.model.ReadyForDeliveryEvent
 import nl.postparcel.tracking.domain.model.ServicePointEvent
 import nl.postparcel.tracking.domain.model.TrackingCode
-import nl.postparcel.tracking.domain.port.ParcelJourneyRepository
+import nl.postparcel.tracking.domain.port.outbound.ParcelJourneyRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired

@@ -22,6 +22,10 @@
         </dependency>
         <dependency>
             <groupId>io.confluent</groupId>
+            <artifactId>kafka-schema-registry-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.confluent</groupId>
             <artifactId>kafka-streams-avro-serde</artifactId>
         </dependency>
 
@@ -114,6 +118,12 @@
         </dependency>
         <dependency>
             <groupId>io.mockk</groupId>
+            <artifactId>mockk-dsl-jvm</artifactId>
+            <version>1.13.16</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.mockk</groupId>
             <artifactId>mockk-jvm</artifactId>
             <version>1.13.16</version>
             <scope>test</scope>
@@ -142,6 +152,11 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

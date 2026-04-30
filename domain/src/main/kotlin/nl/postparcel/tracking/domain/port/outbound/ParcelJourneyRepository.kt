@@ -1,4 +1,4 @@
-package nl.postparcel.tracking.domain.port
+package nl.postparcel.tracking.domain.port.outbound
 
 import nl.postparcel.tracking.domain.model.CompletedParcelJourney
 import nl.postparcel.tracking.domain.model.ParcelId
