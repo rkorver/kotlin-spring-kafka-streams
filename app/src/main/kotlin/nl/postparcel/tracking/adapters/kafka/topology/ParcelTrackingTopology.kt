@@ -133,7 +133,7 @@ class ParcelTrackingTopology(
             .setReadyForDelivery(readyForDelivery)
             .setDelivered(delivered)
             .setComplete(nowComplete)
-            .setAlreadyEmitted(false)
+            .setAlreadyEmitted(current.complete)
             .build()
     }
 
