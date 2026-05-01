@@ -36,20 +36,17 @@ class ParcelTrackingTopology(
         val servicePointStream =
             builder
                 .stream(PARCEL_RECEIVED, Consumed.with(stringSerde, servicePointScanSerde))
-                .selectKey { _, value -> value.parcelId }
                 .mapValues(::partialFromServicePoint)
 
         val sortingCenterStream =
             builder
                 .stream(SORTING_CENTER_EVENTS, Consumed.with(stringSerde, sortingCenterScanSerde))
                 .filter { _, value -> value.scanType == READY_FOR_DELIVERY }
-                .selectKey { _, value -> value.parcelId }
                 .mapValues(::partialFromSortingCenter)
 
         val deliveredStream =
             builder
                 .stream(PARCEL_DELIVERED, Consumed.with(stringSerde, deliveryScanSerde))
-                .selectKey { _, value -> value.parcelId }
                 .mapValues(::partialFromDelivered)
 
         mergeAndAggregateToTopic(
@@ -118,7 +115,7 @@ class ParcelTrackingTopology(
         current: ParcelJourneyState,
         incoming: ParcelJourneyState,
     ): ParcelJourneyState {
-        val parcelId = current.parcelId.takeUnless { it.isNullOrBlank() } ?: incoming.parcelId.orEmpty()
+        val parcelId = current.parcelId.takeUnless { it.isNullOrBlank() } ?: incoming.parcelId
         val trackingCode = current.trackingCode ?: incoming.trackingCode
         val servicePoint = current.servicePoint ?: incoming.servicePoint
         val readyForDelivery = current.readyForDelivery ?: incoming.readyForDelivery
